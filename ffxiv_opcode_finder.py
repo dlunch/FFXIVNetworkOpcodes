@@ -74,9 +74,7 @@ def get_ctrl_target(ea):
 def find_pattern(pattern, times=1):
     address = min_text_ea
     while times>0:
-        address = ida_search.find_binary(
-            idc.next_head(address), max_text_ea, pattern, 16, idc.SEARCH_DOWN
-        )
+        address = ida_bytes.find_bytes(pattern, range_start=idc.next_head(address), range_end=max_text_ea)
         times-=1
         if address == idc.BADADDR:
             return idc.BADADDR
@@ -131,7 +129,7 @@ def find_next_ctrl(cea, down):
 class SwitchTable:
     def __init__(self, ea) -> None:
         self.content = []
-        self.switch_func = idaapi.get_func(ea)
+        self.switch_func = ida_funcs.get_func(ea)
         self.switch_address = find_next_insn(ea, "jmp")
         print(f"switch table at {self.switch_address:x}")
         switch_info = ida_nalt.get_switch_info(self.switch_address)
@@ -178,7 +176,7 @@ class SwitchTable:
 class SimpleSwitch:
     def __init__(self, switch_address) -> None:
         self.content = []
-        self.switch_func = idaapi.get_func(switch_address)
+        self.switch_func = ida_funcs.get_func(switch_address)
         self.switch_func_item = list(idautils.FuncItems(switch_address))
         self.process_case_block(self.switch_func.start_ea, 0, 0, False,'')
         print(self.content)
@@ -239,7 +237,7 @@ class SimpleSwitch:
 class SimpleSwitch2:
     def __init__(self, switch_address) -> None:
         self.content = []
-        self.switch_func = idaapi.get_func(switch_address)
+        self.switch_func = ida_funcs.get_func(switch_address)
         self.switch_func_item = list(idautils.FuncItems(switch_address))
         self.process_case_block(self.switch_func.start_ea)
         print(self.content)
@@ -337,7 +335,7 @@ def map_switch_jumps(_si: int):
 class SwitchTableX:
     def __init__(self, ea) -> None:
         self.content = []
-        self.switch_func = idaapi.get_func(ea)
+        self.switch_func = ida_funcs.get_func(ea)
         self.switch_address = find_next_insn(ea, "jmp")
         print(f"switch table at {self.switch_address:x} <- {ea:x}")
         switch_info = ida_nalt.get_switch_info(self.switch_address)
@@ -378,7 +376,7 @@ class SwitchTableX:
 class CallTable:
     def __init__(self, func_address) -> None:
         self.content = []
-        self.call_fanc = idaapi.get_func(func_address)
+        self.call_fanc = ida_funcs.get_func(func_address)
         self.init_send_table(func_address)
         self.content.sort(key=lambda x: x["case"])
         print("Sorted CallTable")
@@ -387,7 +385,7 @@ class CallTable:
 
     def init_send_table(self, ea):
         call_ea = ea
-        func = idaapi.get_func(ea)
+        func = ida_funcs.get_func(ea)
         if not func:
             xrefs = [xref.frm for xref in idautils.XrefsTo(ea, 0) if xref.iscode == 1]
             for xref in xrefs:
@@ -511,7 +509,7 @@ class ServerZoneIpcType:
         print(f'{name} 0x{ea:03x}')
         if idaapi.segtype(ea) != idaapi.SEG_CODE:
             return False
-        func = idaapi.get_func(ea)
+        func = ida_funcs.get_func(ea)
         if func:
             ea = func.start_ea
         xrefs_all = list(idautils.XrefsTo(ea, flags=1))
@@ -613,6 +611,7 @@ class ConfigReader:
             errors["SigNotFound"].append(name)
             return None
         else:
+            print(f"Signature {name} Found")
             if "Offset" in sig:
                 address += sig["Offset"]
             if "Type" in sig and sig["Type"] == "Call":
